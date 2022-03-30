@@ -138,7 +138,7 @@ where
     /// * `spi` - SPI interface.
     /// * `cs` - Chip-select pin for the MCP2515.
     /// * `delay` - Delay interface from downstream HAL.
-    pub const fn new(spi: SPI, cs: CS, delay: D) -> Self {
+    pub fn new(spi: SPI, cs: CS, delay: D) -> Self {
         Self { spi, cs, delay }
     }
 
