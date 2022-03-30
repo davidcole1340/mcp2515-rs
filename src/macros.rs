@@ -17,7 +17,7 @@ macro_rules! filter_def {
         }
     ) => {
         $(#[doc = $doc])*
-        #[derive(ufmt::derive::uDebug, Clone, Copy, PartialEq, Eq)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
         pub enum $name {
             $(
                 $(#[doc = $filt_doc])*

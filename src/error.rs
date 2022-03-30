@@ -1,13 +1,12 @@
 use core::convert::Infallible;
 
-use ufmt::derive::uDebug;
 use void::Void;
 
 use crate::{CanSpeed, McpSpeed};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
-#[derive(uDebug, Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Error {
     /// MCP2515 did not respond to mode change.
     NewModeTimeout,

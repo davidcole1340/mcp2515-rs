@@ -1,6 +1,5 @@
 use embedded_hal::can::Id;
 use modular_bitfield::prelude::*;
-use ufmt::derive::uDebug;
 
 use crate::regs::Register;
 
@@ -8,7 +7,7 @@ use crate::regs::Register;
 ///
 /// Occupies 4 registers (SIDH, SIDL, EID8 and EID0).
 #[bitfield]
-#[derive(uDebug, Clone, Copy, PartialEq, Eq, BitfieldSpecifier)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, BitfieldSpecifier)]
 pub struct RxFilterReg {
     // Rx filter actually consists of 4 registers (RXFn{SIDH,SIDL,EID8,EID0}),
     // however we concatenate them into one register and use `Filt` to choose `n`.
@@ -48,7 +47,7 @@ impl RxFilterReg {
 ///
 /// Occupies 4 registers (SIDH, SIDL, EID8 and EID0).
 #[bitfield]
-#[derive(uDebug, Clone, Copy, PartialEq, Eq, BitfieldSpecifier)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, BitfieldSpecifier)]
 pub struct RxMaskReg {
     /// Extended identifier mask.
     pub eid: B18,

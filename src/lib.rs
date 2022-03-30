@@ -18,7 +18,6 @@ use filter::{RxFilter, RxMask};
 use frame::CanFrame;
 use regs::{OpMode, Register};
 use stat::Status;
-use ufmt::derive::uDebug;
 
 use crate::{
     buffer::TxBufIdent,
@@ -51,7 +50,7 @@ enum Instruction {
 
 /// Speed the CAN bus is operating at.
 #[repr(u8)]
-#[derive(uDebug, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CanSpeed {
     Kbps5,
     Kbps10,
@@ -72,14 +71,14 @@ pub enum CanSpeed {
 /// Speed the MCP2515 is operating at. Should match the crystal frequency
 /// onboard.
 #[repr(u8)]
-#[derive(uDebug, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum McpSpeed {
     MHz8,
     MHz16,
 }
 
 /// Settings used to initialize the MCP2515.
-#[derive(uDebug, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Settings {
     /// Device operation mode.
     pub mode: OpMode,

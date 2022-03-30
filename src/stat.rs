@@ -1,8 +1,7 @@
 use modular_bitfield::prelude::*;
-use ufmt::derive::uDebug;
 
 #[bitfield]
-#[derive(uDebug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Status {
     #[skip(setters)]
     pub rx0if: bool,
