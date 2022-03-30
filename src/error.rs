@@ -10,6 +10,8 @@ pub type Result<T> = core::result::Result<T, Error>;
 #[derive(uDebug, Debug)]
 pub enum Error {
     NewModeTimeout,
+    TxBusy,
+    TxFailed,
     InvalidConfiguration(CanSpeed, McpSpeed),
 }
 

@@ -1,6 +1,10 @@
 //! MCP2515 registers.
 
-use core::{fmt::Debug, ops::BitOr};
+use core::{
+    fmt::Debug,
+    marker::PhantomData,
+    ops::{BitOr, Deref, DerefMut},
+};
 
 use modular_bitfield::prelude::*;
 use ufmt::{derive::uDebug, uDebug};
@@ -341,9 +345,41 @@ impl Rxb1Ctrl {
 
 impl BitModifiable<1> for Rxb1Ctrl {}
 
+#[bitfield]
+#[derive(uDebug, Clone, Copy, PartialEq, Eq)]
+pub struct TxbCtrl {
+    pub txp: TxBufPriority,
+    #[skip]
+    __: B1,
+    pub txreq: bool,
+    #[skip(setters)]
+    pub txerr: bool,
+    #[skip(setters)]
+    pub mloa: bool,
+    #[skip(setters)]
+    pub abtf: bool,
+    #[skip]
+    __: B1,
+}
+
+impl TxbCtrl {
+    pub const MASK_TXB: Self = Self::from_bytes([0b0000_0011]);
+    pub const MASK_TXREQ: Self = Self::from_bytes([0b0000_1000]);
+}
+
 ///////////////////
 /// Enums
 ///////////////////
+
+#[repr(u8)]
+#[derive(uDebug, Clone, Copy, PartialEq, Eq, BitfieldSpecifier)]
+#[bits = 2]
+pub enum TxBufPriority {
+    Low,
+    LowIntermediate,
+    HighIntermediate,
+    High,
+}
 
 #[repr(u8)]
 #[derive(uDebug, Clone, Copy, PartialEq, Eq, BitfieldSpecifier)]

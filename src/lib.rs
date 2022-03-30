@@ -1,18 +1,24 @@
 #![no_std]
 
+pub mod buffer;
 pub mod error;
 pub mod filter;
+pub mod frame;
+pub(crate) mod macros;
 pub mod regs;
 
-use embedded_hal::can::{ExtendedId, StandardId};
+use buffer::TxBuf;
+use embedded_hal::can::{ExtendedId, Id, StandardId};
 use embedded_hal::digital::v2::OutputPin;
 use embedded_hal::{blocking::delay::DelayMs, blocking::spi::Transfer};
-use filter::{CanId, RxFilter, RxMask};
+use filter::{RxFilter, RxMask};
+use frame::CanFrame;
 use regs::{OpMode, Register, RxStatus};
 use ufmt::derive::uDebug;
 
-use crate::filter::RxFilterReg;
-use crate::regs::{Cnf1, Cnf2, Cnf3, FilterHit, RecvBufOpMode, Rxb0Ctrl, Rxb1Ctrl};
+use crate::buffer::TxBufIdent;
+use crate::filter::{RxFilterReg, RxMaskReg};
+use crate::regs::{Cnf1, Cnf2, Cnf3, FilterHit, RecvBufOpMode, Rxb0Ctrl, Rxb1Ctrl, TxbCtrl};
 use crate::{
     error::{Error, Result},
     regs::{CanCtrl, CanInte, CanIntf, CanStat},
@@ -139,35 +145,13 @@ where
     /// * `settings` - Settings for MCP2515. See [`Settings`].
     pub fn init(&mut self, settings: Settings) -> Result<()> {
         self.cs.set_high()?;
-
         self.reset()?;
+
+        // Set bitrate, enable clken if required, and change into configuration mode.
         self.set_mode(OpMode::Configuration)?;
         self.set_bitrate(settings.can_speed, settings.mcp_speed, settings.clkout_en)?;
         self.set_clken(settings.clkout_en)?;
-        self.set_mode(settings.mode)?;
-        self.init_buffers()?;
 
-        Ok(())
-    }
-
-    /// Performs an action in configuration mode.
-    ///
-    /// The device mode will be changed to configuration mode if required, and
-    /// restored to the previous mode afterwards.
-    fn with_config_mode<T>(&mut self, f: impl FnOnce() -> T) -> Result<T> {
-        let canstat: CanStat = self.read_register()?;
-        let init_mode = canstat.opmod();
-        if init_mode != OpMode::Configuration {
-            self.set_mode_no_wake(OpMode::Configuration)?;
-        }
-        let result = f();
-        if init_mode != OpMode::Configuration {
-            self.set_mode_no_wake(init_mode)?;
-        }
-        Ok(result)
-    }
-
-    fn init_buffers(&mut self) -> Result<()> {
         // Clear Tx registers (TXB{O,1,2}CTRL += 14)
         let zeros = [0u8; 14];
         self.write_registers(Register::TXB0CTRL, &zeros)?;
@@ -207,17 +191,20 @@ where
         // extended filter.
         for filt in RxFilter::ALL {
             let id = if filt == RxFilter::F1 {
-                CanId::Extended(ExtendedId::ZERO)
+                Id::Extended(ExtendedId::ZERO)
             } else {
-                CanId::Standard(StandardId::ZERO)
+                Id::Standard(StandardId::ZERO)
             };
             self.set_filter(filt, id)?;
         }
 
         // Clear all Rx masks and allow extended IDs.
         for mask in RxMask::ALL {
-            self.set_mask(mask, CanId::Extended(ExtendedId::ZERO))?;
+            self.set_mask(mask, Id::Extended(ExtendedId::ZERO))?;
         }
+
+        // Finally switch to requested mode.
+        self.set_mode(settings.mode)?;
 
         Ok(())
     }
@@ -228,9 +215,9 @@ where
     ///
     /// * `filter` - The filter to action on.
     /// * `id` - The actual ID filter to apply to `filter`.
-    pub fn set_filter(&mut self, filter: RxFilter, id: CanId) -> Result<()> {
+    pub fn set_filter(&mut self, filter: RxFilter, id: Id) -> Result<()> {
         let regs = filter.registers();
-        let data = id.into_filter_reg().into_bytes();
+        let data = RxFilterReg::from_id(id).into_bytes();
         debug_assert!(
             regs.len() == data.len(),
             "More registers than data retrieved from filter"
@@ -239,9 +226,15 @@ where
         Ok(())
     }
 
-    pub fn set_mask(&mut self, mask: RxMask, id: CanId) -> Result<()> {
+    /// Sets a receive mask.
+    ///
+    /// # Parameters
+    ///
+    /// * `mask` - The mask to action on.
+    /// * `id` - The actual ID mask to apply to `mask`.
+    pub fn set_mask(&mut self, mask: RxMask, id: Id) -> Result<()> {
         let regs = mask.registers();
-        let data = id.into_mask_reg().into_bytes();
+        let data = RxMaskReg::from_id(id).into_bytes();
         debug_assert!(
             regs.len() == data.len(),
             "More registers than data retrieved from mask"
@@ -384,6 +377,69 @@ where
         self.modify_register(CanCtrl::new().with_clken(clken), CanCtrl::MASK_CLKEN)
     }
 
+    /// Sends a CAN frame over the CAN bus via any available Tx buffer.
+    ///
+    /// # Parameters
+    ///
+    /// * `frame` - Frame to send.
+    pub fn send_message(&mut self, frame: CanFrame) -> Result<()> {
+        let buf = self.find_free_tx_buf()?;
+        self.send_message_via_buffer(buf, frame)
+    }
+
+    /// Sends a CAN frame over the CAN bus via a specific Tx buffer.
+    ///
+    /// # Parameters
+    ///
+    /// * `buf` - Tx buffer to use for transmission.
+    /// * `frame` - Frame to send.
+    pub fn send_message_via_buffer(&mut self, buf: TxBuf, frame: CanFrame) -> Result<()> {
+        // Write control registers.
+        let txbuf = TxBufIdent::from_frame(&frame);
+        self.write_register_addr(&buf.registers(), &txbuf.into_bytes())?;
+
+        // Write data registers.
+        let data = &frame.data[..(frame.dlc as usize)];
+        self.write_registers(buf.data(), data)?;
+
+        // Set `txreq` bit in ctrl register.
+        self.modify_register_addr(
+            &[buf.ctrl()],
+            &TxbCtrl::MASK_TXREQ.into_bytes(),
+            &TxbCtrl::new().with_txreq(true).into_bytes(),
+        )?;
+
+        // Check for any errors.
+        let ctrl = self.read_txb_ctrl(&buf)?;
+        if ctrl.abtf() || ctrl.mloa() || ctrl.txerr() {
+            Err(Error::TxFailed)
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Attempts to find a free Tx buffer.
+    ///
+    /// # Returns
+    ///
+    /// An available Tx buffer on success, error if all Tx buffers were busy.
+    pub fn find_free_tx_buf(&mut self) -> Result<TxBuf> {
+        for buffer in TxBuf::ALL {
+            let ctrl = self.read_txb_ctrl(&buffer)?;
+            if !ctrl.txreq() {
+                return Ok(buffer);
+            }
+        }
+        Err(Error::TxBusy)
+    }
+
+    /// Read the `CTRL` register of a Tx buffer.
+    fn read_txb_ctrl(&mut self, buffer: &TxBuf) -> Result<TxbCtrl> {
+        let mut buf = [0u8; 1];
+        self.read_register_addr(&[buffer.ctrl()], &mut buf)?;
+        Ok(TxbCtrl::from_bytes(buf))
+    }
+
     /// Resets the MCP2515.
     pub fn reset(&mut self) -> Result<()> {
         self.transfer(&mut [Instruction::Reset as u8])?;
@@ -403,17 +459,7 @@ where
         self.transfer(&mut data).map(RxStatus)
     }
 
-    // /// Read a register using a register object.
-    // #[inline]
-    // pub fn read_register<R: regs::Reg>(&mut self) -> Result<R> {
-    //     self.read_register_addr(R::ADDRESS).map(R::read)
-    // }
-    // /// Read from a register using a register address.
-    // pub fn read_register_addr(&mut self, reg: Register) -> Result<u8> {
-    //     let mut data = [Instruction::Read as u8, reg as u8, 0];
-    //     self.transfer(&mut data)
-    // }
-
+    /// Read a register via a register object.
     #[inline]
     pub fn read_register<const N: usize, R: regs::Reg<N>>(&mut self) -> Result<R> {
         let mut ret = [0u8; N];
@@ -479,6 +525,14 @@ where
         })?
     }
 
+    /// Modifies a register.
+    ///
+    /// # Parameters
+    ///
+    /// * `reg` - New register content.
+    /// * `mask` - Mask register. The bits must be 1 in the positions you want
+    ///   to modify.
+    #[inline]
     pub fn modify_register<const N: usize, R: regs::BitModifiable<N>>(
         &mut self,
         reg: R,
@@ -486,17 +540,40 @@ where
     ) -> Result<()> {
         let mask = mask.write();
         let reg = reg.write();
-        for i in 0..N {
+        self.modify_register_addr(&R::ADDRESSES, &reg, &mask)?;
+        Ok(())
+    }
+
+    /// Modifies n registers, where n is the minimum length of `regs`, `data`
+    /// and `masks`.
+    ///
+    /// # Parameters
+    ///
+    /// * `regs` - Registers to modify.
+    /// * `data` - Data to modify registers with.
+    /// * `masks` - Masks to use when modifying registers.
+    ///
+    /// # Returns
+    ///
+    /// Returns the number of registers modified (n), or error on failure.
+    pub fn modify_register_addr(
+        &mut self,
+        regs: &[Register],
+        data: &[u8],
+        masks: &[u8],
+    ) -> Result<usize> {
+        let n = regs.len().min(data.len()).min(masks.len());
+        for i in 0..n {
             let mut data = [
                 Instruction::Bitmod as u8, // BIT MODIFY
-                R::ADDRESSES[i] as u8,     // Register address
-                mask[i],                   // Modify mask byte
-                reg[i],                    // Data byte
+                regs[i] as u8,             // Register address
+                masks[i],                  // Modify mask byte
+                data[i],                   // Data byte
                 0,                         // Recv
             ];
             self.transfer(&mut data)?;
         }
-        Ok(())
+        Ok(n)
     }
 
     /// Transfers an array of bytes via SPI, returning the slave response inside

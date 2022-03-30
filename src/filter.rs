@@ -1,50 +1,8 @@
-use embedded_hal::can::{ExtendedId, StandardId};
+use embedded_hal::can::Id;
 use modular_bitfield::prelude::*;
 use ufmt::derive::uDebug;
 
 use crate::regs::Register;
-
-pub enum CanId {
-    /// Disables the filter.
-    None,
-    /// Standard identifier filter.
-    Standard(StandardId),
-    /// Extended identifier filter.
-    Extended(ExtendedId),
-}
-
-impl CanId {
-    /// Converts the ID into filter register format.
-    pub fn into_filter_reg(self) -> RxFilterReg {
-        // In standard mode: `exide == false` and `eid` doesn't matter. Filter goes into
-        // `sid`.
-        // In extended mode: `exide == true` and the lower 18 bits of the filter go into
-        // `eid`. The rest (upper 11 bits) go into `sid`.
-        match self {
-            CanId::None => RxFilterReg::new(),
-            CanId::Standard(bits) => RxFilterReg::new()
-                .with_exide(false)
-                .with_eid(0)
-                .with_sid(bits.as_raw()),
-            CanId::Extended(bits) => RxFilterReg::new()
-                .with_exide(true)
-                .with_eid(bits.as_raw() & 0x3FFFF) // Lower 18 bits go into EID
-                .with_sid((bits.as_raw() >> 18) as u16), // Upper 11 bits go into SID
-        }
-    }
-
-    /// Converts the ID into mask register format.
-    pub fn into_mask_reg(self) -> RxMaskReg {
-        // As above comments.
-        match self {
-            CanId::None => RxMaskReg::new(),
-            CanId::Standard(bits) => RxMaskReg::new().with_eid(0).with_sid(bits.as_raw()),
-            CanId::Extended(bits) => RxMaskReg::new()
-                .with_eid(bits.as_raw() & 0x3FFFF)
-                .with_sid((bits.as_raw() >> 18) as u16),
-        }
-    }
-}
 
 /// Filter register.
 ///
@@ -66,6 +24,26 @@ pub struct RxFilterReg {
     pub sid: B11,
 }
 
+impl RxFilterReg {
+    /// Creates an Rx filter register from a CAN bus ID.
+    pub fn from_id(id: Id) -> Self {
+        // In standard mode: `exide == false` and `eid` doesn't matter. Filter goes into
+        // `sid`.
+        // In extended mode: `exide == true` and the lower 18 bits of the filter go into
+        // `eid`. The rest (upper 11 bits) go into `sid`.
+        match id {
+            Id::Standard(bits) => RxFilterReg::new()
+                .with_exide(false)
+                .with_eid(0)
+                .with_sid(bits.as_raw()),
+            Id::Extended(bits) => RxFilterReg::new()
+                .with_exide(true)
+                .with_eid(bits.as_raw() & 0x3FFFF) // Lower 18 bits go into EID
+                .with_sid((bits.as_raw() >> 18) as u16), // Upper 11 bits go into SID
+        }
+    }
+}
+
 /// Mask register.
 ///
 /// Occupies 4 registers (SIDH, SIDL, EID8 and EID0).
@@ -80,48 +58,22 @@ pub struct RxMaskReg {
     pub sid: B11,
 }
 
-macro_rules! dummy {
-    ($t:expr) => {
-        ()
-    };
+impl RxMaskReg {
+    /// Creates an Rx mask register from a CAN bus ID.
+    pub fn from_id(id: Id) -> Self {
+        // As above comments.
+        match id {
+            Id::Standard(bits) => RxMaskReg::new().with_eid(0).with_sid(bits.as_raw()),
+            Id::Extended(bits) => RxMaskReg::new()
+                .with_eid(bits.as_raw() & 0x3FFFF)
+                .with_sid((bits.as_raw() >> 18) as u16),
+        }
+    }
 }
 
-macro_rules! filter_def {
-    (
-        $(#[doc = $doc:expr])*
-        $name:ident => {
-            $(
-                $(#[doc = $filt_doc:expr])*
-                $filt:ident => $regs:expr
-            ),*
-        }
-    ) => {
-        $(#[doc = $doc])*
-        #[derive(uDebug, Clone, Copy, PartialEq, Eq)]
-        pub enum $name {
-            $(
-                $(#[doc = $filt_doc])*
-                $filt,
-            )*
-        }
-
-        impl $name {
-            #[doc = concat!("All valid options for [`", stringify!($name), "`].")]
-            pub const ALL: [Self; <[_]>::len(&[$(dummy!($filt)),*])] = [$(Self::$filt),*];
-
-            #[doc = concat!("Returns the `SIDH`, `SIDL`, `EID8`, `EID0` registers (in that order) based on the variant of [`", stringify!($name), "`].")]
-            pub const fn registers(self) -> [Register; 4] {
-                match self {
-                    $(Self::$filt => $regs,)*
-                }
-            }
-        }
-    };
-}
-
-filter_def! {
+crate::filter_def! {
     /// Receive filters.
-    RxFilter => {
+    RxFilter(4) => {
         /// RXF0
         F0 => [Register::RXF0SIDH, Register::RXF0SIDL, Register::RXF0EID8, Register::RXF0EID0],
         /// RXF1
@@ -137,9 +89,9 @@ filter_def! {
     }
 }
 
-filter_def! {
+crate::filter_def! {
     /// Receive masks.
-    RxMask => {
+    RxMask(4) => {
         /// Mask 0
         Mask0 => [Register::RXM0SIDH, Register::RXM0SIDL, Register::RXM0EID8, Register::RXM0EID0],
         /// Mask 1
