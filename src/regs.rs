@@ -1,13 +1,9 @@
 //! MCP2515 registers.
 
-use core::{
-    fmt::Debug,
-    marker::PhantomData,
-    ops::{BitOr, Deref, DerefMut},
-};
+use core::{fmt::Debug, ops::BitOr};
 
 use modular_bitfield::prelude::*;
-use ufmt::{derive::uDebug, uDebug};
+use ufmt::derive::uDebug;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -91,90 +87,6 @@ pub enum Register {
     RXB1DATA = 0x76,
 }
 
-#[derive(Clone, Copy)]
-pub struct RxStatus(pub u8);
-
-#[repr(u8)]
-#[derive(uDebug, Clone, Copy, PartialEq, Eq)]
-pub enum RxStatusRecvMsg {
-    NoMessage,
-    RXB0,
-    RXB1,
-    Both,
-}
-
-#[repr(u8)]
-#[derive(uDebug, Clone, Copy, PartialEq, Eq)]
-pub enum RxStatusRecvMsgType {
-    StandardData,
-    StandardRemote,
-    ExtendedData,
-    ExtendedRemote,
-}
-
-#[repr(u8)]
-#[derive(uDebug, Clone, Copy, PartialEq, Eq)]
-pub enum RxStatusFilterMatch {
-    RXF0,
-    RXF1,
-    RXF2,
-    RXF3,
-    RXF4,
-    RXF5,
-    RXF0_RXB1,
-    RXF1_RXB1,
-}
-
-impl RxStatus {
-    pub fn recv_msg(self) -> RxStatusRecvMsg {
-        match self.0 & 0b1100_0000 {
-            0b0000_0000 => RxStatusRecvMsg::NoMessage,
-            0b0100_0000 => RxStatusRecvMsg::RXB0,
-            0b1000_0000 => RxStatusRecvMsg::RXB1,
-            0b1100_0000 => RxStatusRecvMsg::Both,
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn recv_msg_type(self) -> RxStatusRecvMsgType {
-        match self.0 & 0b0001_1000 {
-            0b0000_0000 => RxStatusRecvMsgType::StandardData,
-            0b0000_1000 => RxStatusRecvMsgType::StandardRemote,
-            0b0001_0000 => RxStatusRecvMsgType::ExtendedData,
-            0b0001_1000 => RxStatusRecvMsgType::ExtendedRemote,
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn filter_match(self) -> RxStatusFilterMatch {
-        match self.0 & 0b0000_0111 {
-            0b0000_0000 => RxStatusFilterMatch::RXF0,
-            0b0000_0001 => RxStatusFilterMatch::RXF1,
-            0b0000_0010 => RxStatusFilterMatch::RXF2,
-            0b0000_0011 => RxStatusFilterMatch::RXF3,
-            0b0000_0100 => RxStatusFilterMatch::RXF4,
-            0b0000_0101 => RxStatusFilterMatch::RXF5,
-            0b0000_0110 => RxStatusFilterMatch::RXF0_RXB1,
-            0b0000_0111 => RxStatusFilterMatch::RXF1_RXB1,
-            _ => unreachable!(),
-        }
-    }
-}
-
-impl uDebug for RxStatus {
-    fn fmt<W>(&self, f: &mut ufmt::Formatter<'_, W>) -> Result<(), W::Error>
-    where
-        W: ufmt::uWrite + ?Sized,
-    {
-        f.debug_struct("Status")?
-            .field("recv_msg", &self.recv_msg())?
-            .field("recv_msg_type", &self.recv_msg_type())?
-            .field("filter_match", &self.filter_match())?
-            .field("internal", &self.0)?
-            .finish()
-    }
-}
-
 pub trait Reg<const BYTES: usize>: Copy {
     /// List of addresses related to this register (or register set). LSB to
     /// MSB.
@@ -241,7 +153,14 @@ pub struct CanIntf {
 }
 
 impl CanIntf {
+    pub const MASK_RX0IF: Self = Self::from_bytes([0b0000_0001]);
+    pub const MASK_RX1IF: Self = Self::from_bytes([0b0000_0010]);
+    pub const MASK_TX0IF: Self = Self::from_bytes([0b0000_0100]);
+    pub const MASK_TX1IF: Self = Self::from_bytes([0b0000_1000]);
+    pub const MASK_TX2IF: Self = Self::from_bytes([0b0001_0000]);
+    pub const MASK_ERRIF: Self = Self::from_bytes([0b0010_0000]);
     pub const MASK_WAKIF: Self = Self::from_bytes([0b0100_0000]);
+    pub const MASK_MERRF: Self = Self::from_bytes([0b1000_0000]);
 }
 
 impl BitModifiable<1> for CanIntf {}

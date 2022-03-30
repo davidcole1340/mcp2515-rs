@@ -1,16 +1,16 @@
 use embedded_hal::can::{Frame, Id};
 
 /// CAN frame.
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct CanFrame {
     /// ID of CAN frame.
-    pub id: Id,
+    pub(crate) id: Id,
     /// Whether the frame is an RTR frame.
-    pub rtr: bool,
+    pub(crate) rtr: bool,
     /// Length of data in CAN frame.
-    pub dlc: u8,
+    pub(crate) dlc: u8,
     /// Data, maximum 8 bytes.
-    pub data: [u8; 8],
+    pub(crate) data: [u8; 8],
 }
 
 impl Frame for CanFrame {

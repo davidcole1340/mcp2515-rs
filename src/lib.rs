@@ -6,22 +6,28 @@ pub mod filter;
 pub mod frame;
 pub(crate) mod macros;
 pub mod regs;
+pub mod stat;
 
-use buffer::TxBuf;
-use embedded_hal::can::{ExtendedId, Id, StandardId};
-use embedded_hal::digital::v2::OutputPin;
-use embedded_hal::{blocking::delay::DelayMs, blocking::spi::Transfer};
+use buffer::{RxBuf, RxBufIdent, TxBuf};
+use embedded_hal::{
+    blocking::{delay::DelayMs, spi::Transfer},
+    can::{ExtendedId, Frame, Id, StandardId},
+    digital::v2::OutputPin,
+};
 use filter::{RxFilter, RxMask};
 use frame::CanFrame;
-use regs::{OpMode, Register, RxStatus};
+use regs::{OpMode, Register};
+use stat::Status;
 use ufmt::derive::uDebug;
 
-use crate::buffer::TxBufIdent;
-use crate::filter::{RxFilterReg, RxMaskReg};
-use crate::regs::{Cnf1, Cnf2, Cnf3, FilterHit, RecvBufOpMode, Rxb0Ctrl, Rxb1Ctrl, TxbCtrl};
 use crate::{
+    buffer::TxBufIdent,
     error::{Error, Result},
-    regs::{CanCtrl, CanInte, CanIntf, CanStat},
+    filter::{RxFilterReg, RxMaskReg},
+    regs::{
+        CanCtrl, CanInte, CanIntf, CanStat, Cnf1, Cnf2, Cnf3, FilterHit, RecvBufOpMode, Rxb0Ctrl,
+        Rxb1Ctrl, TxbCtrl,
+    },
 };
 
 #[repr(u8)]
@@ -399,8 +405,7 @@ where
         self.write_register_addr(&buf.registers(), &txbuf.into_bytes())?;
 
         // Write data registers.
-        let data = &frame.data[..(frame.dlc as usize)];
-        self.write_registers(buf.data(), data)?;
+        self.write_registers(buf.data(), frame.data())?;
 
         // Set `txreq` bit in ctrl register.
         self.modify_register_addr(
@@ -416,6 +421,43 @@ where
         } else {
             Ok(())
         }
+    }
+
+    /// Reads a message from the MCP2515 Rx buffers.
+    pub fn read_message(&mut self) -> Result<CanFrame> {
+        let status = self.read_status()?;
+        if status.rx0if() {
+            self.read_message_from_buf(RxBuf::B0)
+        } else if status.rx1if() {
+            self.read_message_from_buf(RxBuf::B1)
+        } else {
+            Err(Error::NoMessage)
+        }
+    }
+
+    /// Reads a message from a specific Rx buffer.
+    ///
+    /// # Parameters
+    ///
+    /// * `buf` - Rx buffer to read from.
+    pub fn read_message_from_buf(&mut self, buf: RxBuf) -> Result<CanFrame> {
+        let regs = buf.registers();
+        let mut ret = [0u8; 5];
+        debug_assert!(regs.len() == ret.len());
+
+        self.read_register_addr(&regs, &mut ret)?;
+        let rxbuf = RxBufIdent::from_bytes(ret);
+
+        // Read data and claer Rx interrupt flag
+        let frame = rxbuf.into_frame(|ret| self.read_register_seq(buf.data(), ret))?;
+        self.modify_register(
+            CanIntf::new(),
+            match buf {
+                RxBuf::B0 => CanIntf::MASK_RX0IF,
+                RxBuf::B1 => CanIntf::MASK_RX1IF,
+            },
+        )?;
+        Ok(frame)
     }
 
     /// Attempts to find a free Tx buffer.
@@ -449,14 +491,11 @@ where
     }
 
     /// Reads the status register.
-    pub fn read_status(&mut self) -> Result<u8> {
+    pub fn read_status(&mut self) -> Result<Status> {
         let mut data = [Instruction::ReadStatus as u8, 0];
         self.transfer(&mut data)
-    }
-
-    pub fn rx_status(&mut self) -> Result<RxStatus> {
-        let mut data = [Instruction::RxStatus as u8, 0];
-        self.transfer(&mut data).map(RxStatus)
+            .map(|b| [b])
+            .map(Status::from_bytes)
     }
 
     /// Read a register via a register object.
@@ -488,6 +527,25 @@ where
             ret[i] = self.transfer(&mut data)?;
         }
         Ok(n)
+    }
+
+    /// Reads registers starting from `reg` sequentially, moving on to the next
+    /// register until `ret` is full.
+    ///
+    /// # Parameters
+    ///
+    /// * `reg` - Register to start reading from.
+    /// * `ret` - Return slice to write into.
+    fn read_register_seq(&mut self, reg: Register, ret: &mut [u8]) -> Result<()> {
+        let mut hdr = [Instruction::Read as u8, reg as u8];
+        self.with_cs(|spi| -> Result<_> {
+            spi.transfer(&mut hdr)?;
+            // As the MCP2515 doesn't care what we send it while reading, we can just
+            // transfer `ret` as it is. The values will be overriden with received data as
+            // we transfer the bytes.
+            spi.transfer(ret)?;
+            Ok(())
+        })?
     }
 
     /// Write to a register using a register object.

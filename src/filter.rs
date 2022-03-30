@@ -75,17 +75,17 @@ crate::filter_def! {
     /// Receive filters.
     RxFilter(4) => {
         /// RXF0
-        F0 => [Register::RXF0SIDH, Register::RXF0SIDL, Register::RXF0EID8, Register::RXF0EID0],
+        F0 => [Register::RXF0EID0, Register::RXF0EID8, Register::RXF0SIDL, Register::RXF0SIDH],
         /// RXF1
-        F1 => [Register::RXF1SIDH, Register::RXF1SIDL, Register::RXF1EID8, Register::RXF1EID0],
+        F1 => [Register::RXF1EID0, Register::RXF1EID8, Register::RXF1SIDL, Register::RXF1SIDH],
         /// RXF2
-        F2 => [Register::RXF2SIDH, Register::RXF2SIDL, Register::RXF2EID8, Register::RXF2EID0],
+        F2 => [Register::RXF2EID0, Register::RXF2EID8, Register::RXF2SIDL, Register::RXF2SIDH],
         /// RXF3
-        F3 => [Register::RXF3SIDH, Register::RXF3SIDL, Register::RXF3EID8, Register::RXF3EID0],
+        F3 => [Register::RXF3EID0, Register::RXF3EID8, Register::RXF3SIDL, Register::RXF3SIDH],
         /// RXF4
-        F4 => [Register::RXF4SIDH, Register::RXF4SIDL, Register::RXF4EID8, Register::RXF4EID0],
+        F4 => [Register::RXF4EID0, Register::RXF4EID8, Register::RXF4SIDL, Register::RXF4SIDH],
         /// RXF5
-        F5 => [Register::RXF5SIDH, Register::RXF5SIDL, Register::RXF5EID8, Register::RXF5EID0]
+        F5 => [Register::RXF5EID0, Register::RXF5EID8, Register::RXF5SIDL, Register::RXF5SIDH]
     }
 }
 
@@ -93,8 +93,8 @@ crate::filter_def! {
     /// Receive masks.
     RxMask(4) => {
         /// Mask 0
-        Mask0 => [Register::RXM0SIDH, Register::RXM0SIDL, Register::RXM0EID8, Register::RXM0EID0],
+        Mask0 => [Register::RXM0EID0, Register::RXM0EID8, Register::RXM0SIDL, Register::RXM0SIDH],
         /// Mask 1
-        Mask1 => [Register::RXM1SIDH, Register::RXM1SIDL, Register::RXM1EID8, Register::RXM1EID0]
+        Mask1 => [Register::RXM1EID0, Register::RXM1EID8, Register::RXM1SIDL, Register::RXM1SIDH]
     }
 }
