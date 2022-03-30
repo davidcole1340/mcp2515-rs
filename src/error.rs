@@ -1,5 +1,6 @@
 use core::convert::Infallible;
 
+use embedded_hal::can::Error as CanError;
 use void::Void;
 
 use crate::{CanSpeed, McpSpeed};
@@ -33,5 +34,11 @@ impl From<Infallible> for Error {
 impl From<Void> for Error {
     fn from(e: Void) -> Self {
         match e {}
+    }
+}
+
+impl CanError for Error {
+    fn kind(&self) -> embedded_hal::can::ErrorKind {
+        embedded_hal::can::ErrorKind::Other
     }
 }

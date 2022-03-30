@@ -10,7 +10,7 @@ pub mod stat;
 
 use buffer::{RxBuf, RxBufIdent, TxBuf};
 use embedded_hal::{
-    blocking::{delay::DelayMs, spi::Transfer},
+    blocking::{can::Can, delay::DelayMs, spi::Transfer},
     can::{ExtendedId, Frame, Id, StandardId},
     digital::v2::OutputPin,
 };
@@ -661,5 +661,26 @@ where
         let result = f(&mut self.spi);
         self.cs.set_high()?;
         Ok(result)
+    }
+}
+
+impl<SPI, CS, D, SPIE, CSE> Can for MCP2515<SPI, CS, D>
+where
+    SPI: Transfer<u8, Error = SPIE>,
+    CS: OutputPin<Error = CSE>,
+    D: DelayMs<u8>,
+    Error: From<SPIE> + From<CSE>,
+{
+    type Frame = CanFrame;
+    type Error = Error;
+
+    #[inline]
+    fn transmit(&mut self, frame: &Self::Frame) -> Result<()> {
+        self.send_message(*frame)
+    }
+
+    #[inline]
+    fn receive(&mut self) -> Result<Self::Frame> {
+        self.read_message()
     }
 }
