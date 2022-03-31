@@ -1,14 +1,13 @@
-use core::convert::Infallible;
+use core::fmt::Debug;
 
 use embedded_hal::can::Error as CanError;
-use void::Void;
 
 use crate::{CanSpeed, McpSpeed};
 
-pub type Result<T> = core::result::Result<T, Error>;
+pub type Result<T, SPI, HAL> = core::result::Result<T, Error<SPI, HAL>>;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum Error {
+pub enum Error<SPI: Debug, HAL: Debug> {
     /// MCP2515 did not respond to mode change.
     NewModeTimeout,
     /// Tx buffers are full and therefore cannot send another message.
@@ -23,21 +22,13 @@ pub enum Error {
     InvalidDlc,
     /// Invalid configuration options.
     InvalidConfiguration(CanSpeed, McpSpeed),
+    /// SPI error.
+    Spi(SPI),
+    /// Error from HAL crate.
+    Hal(HAL),
 }
 
-impl From<Infallible> for Error {
-    fn from(e: Infallible) -> Self {
-        match e {}
-    }
-}
-
-impl From<Void> for Error {
-    fn from(e: Void) -> Self {
-        match e {}
-    }
-}
-
-impl CanError for Error {
+impl<SPI: Debug, HAL: Debug> CanError for Error<SPI, HAL> {
     fn kind(&self) -> embedded_hal::can::ErrorKind {
         embedded_hal::can::ErrorKind::Other
     }
