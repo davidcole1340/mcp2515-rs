@@ -32,6 +32,8 @@ fn main() -> ! {
     let dp = arduino_hal::Peripherals::take().unwrap();
     let pins = arduino_hal::pins!(dp);
 
+    let mut delay = Delay::new();
+
     let mut serial = arduino_hal::default_serial!(dp, pins, 115200);
     let (spi, cs) = Spi::new(
         dp.SPI,
@@ -45,13 +47,16 @@ fn main() -> ! {
             mode: embedded_hal::spi::MODE_0,
         },
     );
-    let mut can = MCP2515::new(spi, cs, Delay::new());
-    can.init(mcp2515::Settings {
+    let mut can = MCP2515::new(spi, cs);
+    can.init(
+      &mut delay,
+      mcp2515::Settings {
         mode: OpMode::Loopback,       // Loopback for testing and example
         can_speed: CanSpeed::Kbps100, // Many options supported.
         mcp_speed: McpSpeed::MHz8,    // Currently 16MHz and 8MHz chips are supported.
         clkout_en: false,
-    })
+      }
+    )
     .unwrap();
 
     loop {
