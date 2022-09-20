@@ -148,7 +148,11 @@ where
     ///
     /// * `delay` - Delay interface from downstream HAL.
     /// * `settings` - Settings for MCP2515. See [`Settings`].
-    pub fn init(&mut self, delay: &mut impl DelayMs<u8>, settings: Settings) -> Result<(), SPIE, CSE> {
+    pub fn init(
+        &mut self,
+        delay: &mut impl DelayMs<u8>,
+        settings: Settings,
+    ) -> Result<(), SPIE, CSE> {
         self.cs.set_high().map_err(Error::Hal)?;
         self.reset(delay)?;
 
@@ -488,8 +492,9 @@ where
     /// Resets the MCP2515.
     pub fn reset(&mut self, delay: &mut impl DelayMs<u8>) -> Result<(), SPIE, CSE> {
         self.transfer(&mut [Instruction::Reset as u8])?;
-        delay.delay_ms(5); // Sleep for 5ms after reset - if the device is in sleep mode it won't respond
-                                // immediately.
+        // Sleep for 5ms after reset - if the device is in sleep mode it won't respond immediately
+        delay.delay_ms(5);
+
         Ok(())
     }
 
