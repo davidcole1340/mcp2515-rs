@@ -105,20 +105,17 @@ impl Default for Settings {
 }
 
 /// MCP2515 driver.
-pub struct MCP2515<SPI, CS, D> {
+pub struct MCP2515<SPI, CS> {
     /// SPI interface to interact with the MCP2515.
     spi: SPI,
     /// Chip select pin to select the MCP2515.
     cs: CS,
-    /// Delay interface from users HAL.
-    delay: D,
 }
 
-impl<SPI, CS, D, SPIE, CSE> MCP2515<SPI, CS, D>
+impl<SPI, CS, SPIE, CSE> MCP2515<SPI, CS>
 where
     SPI: Transfer<u8, Error = SPIE>,
     CS: OutputPin<Error = CSE>,
-    D: DelayMs<u8>,
     SPIE: Debug,
     CSE: Debug,
 {
@@ -140,9 +137,8 @@ where
     ///
     /// * `spi` - SPI interface.
     /// * `cs` - Chip-select pin for the MCP2515.
-    /// * `delay` - Delay interface from downstream HAL.
-    pub fn new(spi: SPI, cs: CS, delay: D) -> Self {
-        Self { spi, cs, delay }
+    pub fn new(spi: SPI, cs: CS) -> Self {
+        Self { spi, cs }
     }
 
     /// Initializes the MCP2515 driver. This should be called once at the start
@@ -150,10 +146,11 @@ where
     ///
     /// # Parameters
     ///
+    /// * `delay` - Delay interface from downstream HAL.
     /// * `settings` - Settings for MCP2515. See [`Settings`].
-    pub fn init(&mut self, settings: Settings) -> Result<(), SPIE, CSE> {
+    pub fn init(&mut self, delay: &mut impl DelayMs<u8>, settings: Settings) -> Result<(), SPIE, CSE> {
         self.cs.set_high().map_err(Error::Hal)?;
-        self.reset()?;
+        self.reset(delay)?;
 
         // Set bitrate, enable clken if required, and change into configuration mode.
         self.set_mode(OpMode::Configuration)?;
@@ -489,9 +486,9 @@ where
     }
 
     /// Resets the MCP2515.
-    pub fn reset(&mut self) -> Result<(), SPIE, CSE> {
+    pub fn reset(&mut self, delay: &mut impl DelayMs<u8>) -> Result<(), SPIE, CSE> {
         self.transfer(&mut [Instruction::Reset as u8])?;
-        self.delay.delay_ms(5); // Sleep for 5ms after reset - if the device is in sleep mode it won't respond
+        delay.delay_ms(5); // Sleep for 5ms after reset - if the device is in sleep mode it won't respond
                                 // immediately.
         Ok(())
     }
@@ -683,11 +680,10 @@ where
     }
 }
 
-impl<SPI, CS, D, SPIE, CSE> Can for MCP2515<SPI, CS, D>
+impl<SPI, CS, SPIE, CSE> Can for MCP2515<SPI, CS>
 where
     SPI: Transfer<u8, Error = SPIE>,
     CS: OutputPin<Error = CSE>,
-    D: DelayMs<u8>,
     SPIE: Debug,
     CSE: Debug,
 {
