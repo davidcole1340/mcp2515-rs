@@ -49,13 +49,13 @@ fn main() -> ! {
     );
     let mut can = MCP2515::new(spi, cs);
     can.init(
-      &mut delay,
-      mcp2515::Settings {
-        mode: OpMode::Loopback,       // Loopback for testing and example
-        can_speed: CanSpeed::Kbps100, // Many options supported.
-        mcp_speed: McpSpeed::MHz8,    // Currently 16MHz and 8MHz chips are supported.
-        clkout_en: false,
-      }
+        &mut delay,
+        mcp2515::Settings {
+            mode: OpMode::Loopback,       // Loopback for testing and example
+            can_speed: CanSpeed::Kbps100, // Many options supported.
+            mcp_speed: McpSpeed::MHz8,    // Currently 16MHz and 8MHz chips are supported.
+            clkout_en: false,
+        }
     )
     .unwrap();
 
