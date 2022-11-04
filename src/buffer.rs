@@ -12,6 +12,7 @@ use crate::{
 /// Tx buffer identification register.
 #[bitfield]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, BitfieldSpecifier)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct TxBufIdent {
     /// Size of data packet, 0-8. Anything above 8 is ignored.
     pub dlc: B4,
@@ -93,6 +94,7 @@ impl TxBuf {
 /// Rx buffer identification register.
 #[bitfield]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, BitfieldSpecifier)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct RxBufIdent {
     /// Size of data packet, 0-8. Anything above 8 is ignored.
     pub dlc: B4,

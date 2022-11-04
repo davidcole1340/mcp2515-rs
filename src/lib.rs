@@ -36,23 +36,24 @@ enum Instruction {
     Write = 0x2,
     Read = 0x3,
     Bitmod = 0x5,
-    LoadTX0 = 0x40,
-    LoadTX1 = 0x42,
-    LoadTX2 = 0x44,
-    RTSTX0 = 0x81,
-    RTSTX1 = 0x82,
-    RTSTX2 = 0x84,
-    RTSAll = 0x87,
-    ReadRX0 = 0x90,
-    ReadRX1 = 0x94,
+    // LoadTX0 = 0x40,
+    // LoadTX1 = 0x42,
+    // LoadTX2 = 0x44,
+    // RTSTX0 = 0x81,
+    // RTSTX1 = 0x82,
+    // RTSTX2 = 0x84,
+    // RTSAll = 0x87,
+    // ReadRX0 = 0x90,
+    // ReadRX1 = 0x94,
     ReadStatus = 0xA0,
-    RxStatus = 0xB0,
+    // RxStatus = 0xB0,
     Reset = 0xC0,
 }
 
 /// Speed the CAN bus is operating at.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum CanSpeed {
     Kbps5,
     Kbps10,
@@ -74,6 +75,7 @@ pub enum CanSpeed {
 /// onboard.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum McpSpeed {
     MHz8,
     MHz16,
@@ -81,6 +83,7 @@ pub enum McpSpeed {
 
 /// Settings used to initialize the MCP2515.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Settings {
     /// Device operation mode.
     pub mode: OpMode,

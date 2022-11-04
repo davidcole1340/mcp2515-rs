@@ -8,6 +8,7 @@ use crate::regs::Register;
 /// Occupies 4 registers (SIDH, SIDL, EID8 and EID0).
 #[bitfield]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, BitfieldSpecifier)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct RxFilterReg {
     // Rx filter actually consists of 4 registers (RXFn{SIDH,SIDL,EID8,EID0}),
     // however we concatenate them into one register and use `Filt` to choose `n`.
@@ -48,6 +49,7 @@ impl RxFilterReg {
 /// Occupies 4 registers (SIDH, SIDL, EID8 and EID0).
 #[bitfield]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, BitfieldSpecifier)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct RxMaskReg {
     /// Extended identifier mask.
     pub eid: B18,

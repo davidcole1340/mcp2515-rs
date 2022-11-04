@@ -13,8 +13,32 @@ pub struct CanFrame {
     pub(crate) data: [u8; 8],
 }
 
+#[cfg(feature = "defmt")]
+impl defmt::Format for CanFrame {
+    fn format(&self, fmt: defmt::Formatter) {
+        // [`Id`] does not implement `defmt::Format`
+        #[derive(defmt::Format)]
+        enum InnerId {
+            Standard(u16),
+            Extended(u32),
+        }
+
+        defmt::write!(
+            fmt,
+            "CanFrame {{ id: {:#X}, rtr: {}, dlc: {:#X}, data: {:#X} }}",
+            match self.id {
+                Id::Standard(id) => InnerId::Standard(id.as_raw()),
+                Id::Extended(id) => InnerId::Extended(id.as_raw()),
+            },
+            self.rtr,
+            self.dlc,
+            self.data
+        );
+    }
+}
+
 impl Frame for CanFrame {
-    fn new(id: impl Into<embedded_hal::can::Id>, data: &[u8]) -> Option<Self> {
+    fn new(id: impl Into<Id>, data: &[u8]) -> Option<Self> {
         if data.len() > 8 {
             return None;
         }
@@ -28,7 +52,7 @@ impl Frame for CanFrame {
         Some(frame)
     }
 
-    fn new_remote(id: impl Into<embedded_hal::can::Id>, dlc: usize) -> Option<Self> {
+    fn new_remote(id: impl Into<Id>, dlc: usize) -> Option<Self> {
         if dlc > 8 {
             return None;
         }
@@ -51,7 +75,7 @@ impl Frame for CanFrame {
     }
 
     #[inline]
-    fn id(&self) -> embedded_hal::can::Id {
+    fn id(&self) -> Id {
         self.id
     }
 

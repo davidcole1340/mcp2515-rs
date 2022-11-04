@@ -8,6 +8,13 @@ Inspired by the following C++ libraries:
 - [`MCP_CAN_lib`](https://github.com/coryjfowler/MCP_CAN_lib)
 - [`arduino-MCP2515`](https://github.com/autowp/arduino-mcp2515)
 
+## Cargo Features
+
+All features are disabled by default.
+
+- `defmt` - Implements `defmt::Format` for most public types so they can be
+  printed using `defmt::info!()` and relatives.
+
 ## Usage
 
 Import the relevant HAL crate for your platform. For this example I'm using

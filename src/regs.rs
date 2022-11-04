@@ -6,6 +6,7 @@ use modular_bitfield::prelude::*;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Register {
     RXF0SIDH = 0x00,
     RXF0SIDL = 0x01,
@@ -103,6 +104,7 @@ pub trait BitModifiable<const BYTES: usize>: Reg<BYTES> {}
 
 #[bitfield]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct CanCtrl {
     /// CLKOUT Presacalar
     pub clkpre: ClkPre,
@@ -127,6 +129,7 @@ impl BitModifiable<1> for CanCtrl {}
 
 #[bitfield]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct CanStat {
     #[skip]
     __: B1,
@@ -140,6 +143,7 @@ pub struct CanStat {
 
 #[bitfield]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct CanIntf {
     pub rx0if: bool,
     pub rx1if: bool,
@@ -166,6 +170,7 @@ impl BitModifiable<1> for CanIntf {}
 
 #[bitfield]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct CanInte {
     pub rx0ie: bool,
     pub rx1ie: bool,
@@ -185,6 +190,7 @@ impl BitModifiable<1> for CanInte {}
 
 #[bitfield]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Cnf1 {
     pub brp: B6,
     pub sjw: SyncJumpWidth,
@@ -192,6 +198,7 @@ pub struct Cnf1 {
 
 #[bitfield]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Cnf2 {
     pub prseg: B3,
     pub phseg1: B3,
@@ -201,6 +208,7 @@ pub struct Cnf2 {
 
 #[bitfield]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Cnf3 {
     pub phseg2: B3,
     #[skip]
@@ -211,6 +219,7 @@ pub struct Cnf3 {
 
 #[bitfield]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Rxb0Ctrl {
     /// Filter hit.
     // TODO(david): Data sheet says this is read-only however other libraries write to it.
@@ -241,6 +250,7 @@ impl BitModifiable<1> for Rxb0Ctrl {}
 
 #[bitfield]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Rxb1Ctrl {
     /// Filter hit.
     // TODO(david): Data sheet says this is read-only however other libraries write to it.
@@ -265,6 +275,7 @@ impl BitModifiable<1> for Rxb1Ctrl {}
 
 #[bitfield]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct TxbCtrl {
     pub txp: TxBufPriority,
     #[skip]
@@ -291,6 +302,7 @@ impl TxbCtrl {
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, BitfieldSpecifier)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[bits = 2]
 pub enum TxBufPriority {
     Low,
@@ -301,6 +313,7 @@ pub enum TxBufPriority {
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, BitfieldSpecifier)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[bits = 3]
 pub enum FilterHit {
     /// Acceptance filter 0 (only if the BUKT bit is set in RXB0CTRL).
@@ -319,6 +332,7 @@ pub enum FilterHit {
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, BitfieldSpecifier)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[bits = 2]
 pub enum RecvBufOpMode {
     /// Receives all valid messages using either Standard or Extended
@@ -332,6 +346,7 @@ pub enum RecvBufOpMode {
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, BitfieldSpecifier)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[bits = 2]
 pub enum SyncJumpWidth {
     Tq1,
@@ -342,6 +357,7 @@ pub enum SyncJumpWidth {
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, BitfieldSpecifier)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[bits = 3]
 pub enum OpMode {
     Normal,
@@ -353,6 +369,7 @@ pub enum OpMode {
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, BitfieldSpecifier)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[bits = 2]
 pub enum ClkPre {
     Div1,
@@ -363,6 +380,7 @@ pub enum ClkPre {
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, BitfieldSpecifier)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[bits = 3]
 pub enum IntFlagCode {
     None,

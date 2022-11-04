@@ -7,6 +7,7 @@ use crate::{CanSpeed, McpSpeed};
 pub type Result<T, SPI, HAL> = core::result::Result<T, Error<SPI, HAL>>;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Error<SPI: Debug, HAL: Debug> {
     /// MCP2515 did not respond to mode change.
     NewModeTimeout,
