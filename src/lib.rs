@@ -495,7 +495,8 @@ where
     /// Resets the MCP2515.
     pub fn reset(&mut self, delay: &mut impl DelayMs<u8>) -> Result<(), SPIE, CSE> {
         self.transfer(&mut [Instruction::Reset as u8])?;
-        // Sleep for 5ms after reset - if the device is in sleep mode it won't respond immediately
+        // Sleep for 5ms after reset - if the device is in sleep mode it won't respond
+        // immediately
         delay.delay_ms(5);
 
         Ok(())

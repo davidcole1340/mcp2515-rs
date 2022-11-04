@@ -267,7 +267,7 @@ pub struct Rxb1Ctrl {
 }
 
 impl Rxb1Ctrl {
-    pub const MASK_RXM: Self = Self::from_bytes([0b0110_000]);
+    pub const MASK_RXM: Self = Self::from_bytes([0b011_0000]);
     pub const MASK_FILTHIT: Self = Self::from_bytes([0b0000_0111]);
 }
 

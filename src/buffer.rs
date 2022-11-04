@@ -124,7 +124,7 @@ impl RxBufIdent {
     /// * `read_data` - Function which reads from the corresponding `DATA`
     ///   register. The function should fill the mutable slice with bytes
     ///   received from the CAN bus.
-    pub fn into_frame<'a, SPIE: Debug, HALE: Debug>(
+    pub fn into_frame<SPIE: Debug, HALE: Debug>(
         self,
         read_data: impl FnOnce(&mut [u8]) -> Result<(), SPIE, HALE>,
     ) -> Result<CanFrame, SPIE, HALE> {
