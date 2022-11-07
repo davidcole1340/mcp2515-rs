@@ -299,9 +299,9 @@ where
             (McpSpeed::MHz16, CanSpeed::Kbps1000) => (0x00, 0xCA, 0x81),
             _ => return Err(Error::InvalidConfiguration(can_speed, mcp_speed)),
         };
-        let cfg3 = Cnf3::from_bytes([cfg3]);
+        let mut cfg3 = Cnf3::from_bytes([cfg3]);
         if clkout_en {
-            cfg3.with_sof(false);
+            cfg3 = cfg3.with_sof(false);
         }
         self.write_register(Cnf1::from_bytes([cfg1]))?;
         self.write_register(Cnf2::from_bytes([cfg2]))?;
