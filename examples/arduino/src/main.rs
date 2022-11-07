@@ -35,7 +35,7 @@ fn main() -> ! {
             can_speed: CanSpeed::Kbps100, // Many options supported.
             mcp_speed: McpSpeed::MHz8,    // Currently 16MHz and 8MHz chips are supported.
             clkout_en: false,
-        }
+        },
     )
     .unwrap();
 
@@ -51,9 +51,7 @@ fn main() -> ! {
 
         // Read the message back (we are in loopback mode)
         match can.read_message() {
-            Ok(frame) => {
-                ufmt::uwriteln!(&mut serial, "Received frame {:?}", frame).unwrap();
-            }
+            Ok(frame) => ufmt::uwriteln!(&mut serial, "Received frame {:?}", frame).unwrap(),
             Err(Error::NoMessage) => ufmt::uwriteln!(&mut serial, "No message to read!").unwrap(),
             Err(_) => panic!("Oh no!"),
         }
