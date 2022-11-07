@@ -13,8 +13,10 @@ fn main() -> ! {
     let pins = arduino_hal::pins!(dp);
 
     let mut delay = Delay::new();
-
     let mut serial = arduino_hal::default_serial!(dp, pins, 115200);
+
+    ufmt::uwriteln!(&mut serial, "Hello, world!").unwrap();
+
     let (spi, cs) = Spi::new(
         dp.SPI,
         pins.d13.into_output(),
