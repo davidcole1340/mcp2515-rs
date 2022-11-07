@@ -3,6 +3,7 @@ use modular_bitfield::prelude::*;
 #[bitfield]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
 pub struct Status {
     #[skip(setters)]
     pub rx0if: bool,

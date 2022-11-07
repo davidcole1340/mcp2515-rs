@@ -13,6 +13,7 @@ use crate::{
 #[bitfield]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, BitfieldSpecifier)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
 pub struct TxBufIdent {
     /// Size of data packet, 0-8. Anything above 8 is ignored.
     pub dlc: B4,
@@ -95,6 +96,7 @@ impl TxBuf {
 #[bitfield]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, BitfieldSpecifier)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
 pub struct RxBufIdent {
     /// Size of data packet, 0-8. Anything above 8 is ignored.
     pub dlc: B4,

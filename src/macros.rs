@@ -19,6 +19,7 @@ macro_rules! filter_def {
         $(#[doc = $doc])*
         #[derive(Debug, Clone, Copy, PartialEq, Eq)]
         #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+        #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
         pub enum $name {
             $(
                 $(#[doc = $filt_doc])*

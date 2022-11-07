@@ -13,7 +13,19 @@ Inspired by the following C++ libraries:
 All features are disabled by default.
 
 - `defmt` - Implements `defmt::Format` for most public types so they can be
-  printed using `defmt::info!()` and relatives.
+  printed using `defmt::info!()` and relatives
+- `ufmt` - Implements `ufmt::uDebug` for most public types so they can be
+  printed using `ufmt::uwriteln!()` and relatives
+
+## Examples
+
+Examples for some common microcontrollers are available in the `examples/`
+folder.
+
+- [Arduino Uno](./examples/arduino/)
+  - Easily adapted to other AVR-based boards
+- [Raspberry Pi Pico](./examples/rp-pico/)
+  - Easily adapted to other RP2040-based boards
 
 ## Usage
 

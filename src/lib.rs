@@ -54,6 +54,7 @@ enum Instruction {
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
 pub enum CanSpeed {
     Kbps5,
     Kbps10,
@@ -76,6 +77,7 @@ pub enum CanSpeed {
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
 pub enum McpSpeed {
     MHz8,
     MHz16,
@@ -84,6 +86,7 @@ pub enum McpSpeed {
 /// Settings used to initialize the MCP2515.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
 pub struct Settings {
     /// Device operation mode.
     pub mode: OpMode,
@@ -299,9 +302,9 @@ where
             (McpSpeed::MHz16, CanSpeed::Kbps1000) => (0x00, 0xCA, 0x81),
             _ => return Err(Error::InvalidConfiguration(can_speed, mcp_speed)),
         };
-        let cfg3 = Cnf3::from_bytes([cfg3]);
+        let mut cfg3 = Cnf3::from_bytes([cfg3]);
         if clkout_en {
-            cfg3.with_sof(false);
+            cfg3 = cfg3.with_sof(false);
         }
         self.write_register(Cnf1::from_bytes([cfg1]))?;
         self.write_register(Cnf2::from_bytes([cfg2]))?;
