@@ -54,6 +54,7 @@ enum Instruction {
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
 pub enum CanSpeed {
     Kbps5,
     Kbps10,
@@ -76,6 +77,7 @@ pub enum CanSpeed {
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
 pub enum McpSpeed {
     MHz8,
     MHz16,
@@ -84,6 +86,7 @@ pub enum McpSpeed {
 /// Settings used to initialize the MCP2515.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
 pub struct Settings {
     /// Device operation mode.
     pub mode: OpMode,

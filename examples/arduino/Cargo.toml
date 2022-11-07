@@ -1,0 +1,31 @@
+[package]
+name = "mcp2515-arduino"
+version = "0.1.0"
+authors = ["David Cole <david.cole1340@gmail.com>"]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+mcp2515 = { path = "../../", features = ["ufmt"] }
+panic-halt = "0.2.0"
+ufmt = "0.1.0"
+nb = "0.1.2"
+embedded-hal = "0.2.3"
+
+[dependencies.arduino-hal]
+git = "https://github.com/rahix/avr-hal"
+rev = "3b8f39fa2ec5e3359c7bedc33d982e75e8cc3700"
+features = ["arduino-uno"]
+
+# Configure the build for minimal size - AVRs have very little program memory
+[profile.dev]
+panic = "abort"
+lto = true
+opt-level = "s"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+debug = true
+lto = true
+opt-level = "s"

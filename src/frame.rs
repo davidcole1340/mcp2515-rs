@@ -13,16 +13,17 @@ pub struct CanFrame {
     pub(crate) data: [u8; 8],
 }
 
+#[cfg(any(feature = "defmt", feature = "ufmt"))]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
+enum InnerId {
+    Standard(u16),
+    Extended(u32),
+}
+
 #[cfg(feature = "defmt")]
 impl defmt::Format for CanFrame {
     fn format(&self, fmt: defmt::Formatter) {
-        // [`Id`] does not implement `defmt::Format`
-        #[derive(defmt::Format)]
-        enum InnerId {
-            Standard(u16),
-            Extended(u32),
-        }
-
         defmt::write!(
             fmt,
             "CanFrame {{ id: {:#X}, rtr: {}, dlc: {:#X}, data: {:#X} }}",
@@ -34,6 +35,27 @@ impl defmt::Format for CanFrame {
             self.dlc,
             self.data
         );
+    }
+}
+
+#[cfg(feature = "ufmt")]
+impl ufmt::uDebug for CanFrame {
+    fn fmt<W>(&self, fmt: &mut ufmt::Formatter<'_, W>) -> Result<(), W::Error>
+    where
+        W: ufmt::uWrite + ?Sized,
+    {
+        fmt.debug_struct("CanFrame")?
+            .field(
+                "id",
+                &match self.id {
+                    Id::Standard(id) => InnerId::Standard(id.as_raw()),
+                    Id::Extended(id) => InnerId::Extended(id.as_raw()),
+                },
+            )?
+            .field("rtr", &self.rtr)?
+            .field("dlc", &self.dlc)?
+            .field("data", &self.data)?
+            .finish()
     }
 }
 

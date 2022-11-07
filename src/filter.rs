@@ -9,6 +9,7 @@ use crate::regs::Register;
 #[bitfield]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, BitfieldSpecifier)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
 pub struct RxFilterReg {
     // Rx filter actually consists of 4 registers (RXFn{SIDH,SIDL,EID8,EID0}),
     // however we concatenate them into one register and use `Filt` to choose `n`.
@@ -50,6 +51,7 @@ impl RxFilterReg {
 #[bitfield]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, BitfieldSpecifier)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
 pub struct RxMaskReg {
     /// Extended identifier mask.
     pub eid: B18,
