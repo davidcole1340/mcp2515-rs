@@ -38,7 +38,7 @@ Import the relevant HAL crate for your platform. For this example I'm using
 
 use arduino_hal::{spi::Settings, Delay, Spi};
 use core::fmt::Write;
-use embedded_hal::can::{ExtendedId, Frame, Id};
+use embedded_can::{ExtendedId, Frame, Id};
 use mcp2515::{error::Error, frame::CanFrame, regs::OpMode, CanSpeed, McpSpeed, MCP2515};
 
 #[panic_handler]

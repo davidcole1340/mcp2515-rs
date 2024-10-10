@@ -1,4 +1,4 @@
-use embedded_hal::can::{Frame, Id};
+use embedded_can::{Frame, Id};
 
 /// CAN frame.
 #[derive(Debug, Clone, Copy)]

@@ -4,7 +4,7 @@
 use panic_halt as _;
 
 use arduino_hal::{spi::Settings, Delay, Spi};
-use embedded_hal::can::{ExtendedId, Frame, Id};
+use embedded_can::{ExtendedId, Frame, Id};
 use mcp2515::{error::Error, frame::CanFrame, regs::OpMode, CanSpeed, McpSpeed, MCP2515};
 
 #[arduino_hal::entry]

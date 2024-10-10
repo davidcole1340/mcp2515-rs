@@ -1,6 +1,6 @@
 use core::fmt::Debug;
 
-use embedded_hal::can::{ExtendedId, Frame, Id, StandardId};
+use embedded_can::{ExtendedId, Frame, Id, StandardId};
 use modular_bitfield::prelude::*;
 
 use crate::{

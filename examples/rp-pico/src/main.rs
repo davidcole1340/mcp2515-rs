@@ -5,7 +5,7 @@ use defmt_rtt as _;
 use panic_probe as _;
 use rp_pico as bsp;
 
-use embedded_hal::can::{ExtendedId, Frame, Id};
+use embedded_can::{ExtendedId, Frame, Id};
 use mcp2515::{error::Error, frame::CanFrame, regs::OpMode, CanSpeed, McpSpeed, Settings, MCP2515};
 
 use defmt::{panic, *};

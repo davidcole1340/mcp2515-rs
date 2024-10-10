@@ -1,4 +1,4 @@
-use embedded_hal::can::Id;
+use embedded_can::Id;
 use modular_bitfield::prelude::*;
 
 use crate::regs::Register;

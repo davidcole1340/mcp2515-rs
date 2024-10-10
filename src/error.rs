@@ -1,6 +1,6 @@
 use core::fmt::Debug;
 
-use embedded_hal::can::Error as CanError;
+use embedded_can::Error as CanError;
 
 use crate::{CanSpeed, McpSpeed};
 
@@ -31,7 +31,7 @@ pub enum Error<SPI: Debug, HAL: Debug> {
 }
 
 impl<SPI: Debug, HAL: Debug> CanError for Error<SPI, HAL> {
-    fn kind(&self) -> embedded_hal::can::ErrorKind {
-        embedded_hal::can::ErrorKind::Other
+    fn kind(&self) -> embedded_can::ErrorKind {
+        embedded_can::ErrorKind::Other
     }
 }
