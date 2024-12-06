@@ -11,11 +11,15 @@ pub mod stat;
 use core::fmt::Debug;
 
 use buffer::{RxBuf, RxBufIdent, TxBuf};
-use embedded_can::{blocking::Can, ExtendedId, Frame, Id, StandardId};
-use embedded_hal::{
-    delay::DelayNs,
-    spi::{Operation, SpiDevice},
-};
+#[cfg(not(feature = "async"))]
+use embedded_can::blocking::Can;
+use embedded_can::{ExtendedId, Frame, Id, StandardId};
+use embedded_hal::{delay::DelayNs, spi::Operation};
+
+#[cfg(not(feature = "async"))]
+use embedded_hal::spi::SpiDevice;
+#[cfg(feature = "async")]
+use embedded_hal_async::spi::SpiDevice;
 use filter::{RxFilter, RxMask};
 use frame::CanFrame;
 use regs::{OpMode, Register};
@@ -116,6 +120,7 @@ pub struct MCP2515<SPI> {
     spi: SPI,
 }
 
+#[maybe_async::maybe_async(AFIT)]
 impl<SPI> MCP2515<SPI>
 where
     SPI: SpiDevice<u8>,
@@ -148,23 +153,30 @@ where
     ///
     /// * `delay` - Delay interface from downstream HAL.
     /// * `settings` - Settings for MCP2515. See [`Settings`].
-    pub fn init(&mut self, delay: &mut impl DelayNs, settings: Settings) -> Result<(), SPI::Error> {
-        self.reset(delay)?;
+    pub async fn init(
+        &mut self,
+        delay: &mut impl DelayNs,
+        settings: Settings,
+    ) -> Result<(), SPI::Error> {
+        self.reset(delay).await?;
 
         // Set bitrate, enable clken if required, and change into configuration mode.
-        self.set_mode(OpMode::Configuration)?;
-        self.set_bitrate(settings.can_speed, settings.mcp_speed, settings.clkout_en)?;
-        self.set_clken(settings.clkout_en)?;
+        self.set_mode(OpMode::Configuration).await?;
+        self.set_bitrate(settings.can_speed, settings.mcp_speed, settings.clkout_en)
+            .await?;
+        self.set_clken(settings.clkout_en).await?;
 
         // Clear Tx registers (TXB{O,1,2}CTRL += 14)
         let zeros = [0u8; 14];
-        self.write_registers(Register::TXB0CTRL, &zeros)?;
-        self.write_registers(Register::TXB1CTRL, &zeros)?;
-        self.write_registers(Register::TXB2CTRL, &zeros)?;
+        self.write_registers(Register::TXB0CTRL, &zeros).await?;
+        self.write_registers(Register::TXB1CTRL, &zeros).await?;
+        self.write_registers(Register::TXB2CTRL, &zeros).await?;
 
         // Clear Rx registers
-        self.write_register_addr(&[Register::RXB0CTRL], &[0])?;
-        self.write_register_addr(&[Register::RXB1CTRL], &[0])?;
+        self.write_register_addr(&[Register::RXB0CTRL], &[0])
+            .await?;
+        self.write_register_addr(&[Register::RXB1CTRL], &[0])
+            .await?;
 
         // Enable interrupts for Rx buffer full, error and message errors.
         self.write_register(
@@ -173,7 +185,8 @@ where
                 .with_rx1ie(true)
                 .with_errie(true)
                 .with_merre(true),
-        )?;
+        )
+        .await?;
 
         // Receive all messages that have a standard or extended identifier. Set RXF0 up
         // for RXB0 and RXF1 up for RXB1.
@@ -183,13 +196,15 @@ where
                 .with_bukt(true)
                 .with_filhit0(false),
             Rxb0Ctrl::MASK_RXM | Rxb0Ctrl::MASK_BUKT | Rxb0Ctrl::MASK_FILTHIT0,
-        )?;
+        )
+        .await?;
         self.modify_register(
             Rxb1Ctrl::new()
                 .with_rxm(RecvBufOpMode::FilterOn)
                 .with_filthit(FilterHit::Filter1),
             Rxb1Ctrl::MASK_RXM | Rxb1Ctrl::MASK_FILTHIT,
-        )?;
+        )
+        .await?;
 
         // Clear all Rx filters and set all to standard EXCEPT for F1 which will be
         // extended filter.
@@ -199,16 +214,16 @@ where
             } else {
                 Id::Standard(StandardId::ZERO)
             };
-            self.set_filter(filt, id)?;
+            self.set_filter(filt, id).await?;
         }
 
         // Clear all Rx masks and allow extended IDs.
         for mask in RxMask::ALL {
-            self.set_mask(mask, Id::Extended(ExtendedId::ZERO))?;
+            self.set_mask(mask, Id::Extended(ExtendedId::ZERO)).await?;
         }
 
         // Finally switch to requested mode.
-        self.set_mode(settings.mode)?;
+        self.set_mode(settings.mode).await?;
 
         Ok(())
     }
@@ -219,14 +234,14 @@ where
     ///
     /// * `filter` - The filter to action on.
     /// * `id` - The actual ID filter to apply to `filter`.
-    pub fn set_filter(&mut self, filter: RxFilter, id: Id) -> Result<(), SPI::Error> {
+    pub async fn set_filter(&mut self, filter: RxFilter, id: Id) -> Result<(), SPI::Error> {
         let regs = filter.registers();
         let data = RxFilterReg::from_id(id).into_bytes();
         debug_assert!(
             regs.len() == data.len(),
             "More registers than data retrieved from filter"
         );
-        self.write_register_addr(&regs, &data)?;
+        self.write_register_addr(&regs, &data).await?;
         Ok(())
     }
 
@@ -236,14 +251,14 @@ where
     ///
     /// * `mask` - The mask to action on.
     /// * `id` - The actual ID mask to apply to `mask`.
-    pub fn set_mask(&mut self, mask: RxMask, id: Id) -> Result<(), SPI::Error> {
+    pub async fn set_mask(&mut self, mask: RxMask, id: Id) -> Result<(), SPI::Error> {
         let regs = mask.registers();
         let data = RxMaskReg::from_id(id).into_bytes();
         debug_assert!(
             regs.len() == data.len(),
             "More registers than data retrieved from mask"
         );
-        self.write_register_addr(&regs, &data)?;
+        self.write_register_addr(&regs, &data).await?;
         Ok(())
     }
 
@@ -254,7 +269,7 @@ where
     /// * `can_speed` - CAN speed to operate at.
     /// * `mcp_speed` - Clock speed of the MCP2515.
     /// * `clkout_en` - Whether to enable the `CLKOUT` pin.
-    pub fn set_bitrate(
+    pub async fn set_bitrate(
         &mut self,
         can_speed: CanSpeed,
         mcp_speed: McpSpeed,
@@ -295,9 +310,9 @@ where
         if clkout_en {
             cfg3 = cfg3.with_sof(false);
         }
-        self.write_register(Cnf1::from_bytes([cfg1]))?;
-        self.write_register(Cnf2::from_bytes([cfg2]))?;
-        self.write_register(cfg3)?;
+        self.write_register(Cnf1::from_bytes([cfg1])).await?;
+        self.write_register(Cnf2::from_bytes([cfg2])).await?;
+        self.write_register(cfg3).await?;
         Ok(())
     }
 
@@ -313,35 +328,37 @@ where
     ///
     /// Nothing on success, error if waking the device or setting the new mode
     /// fails.
-    pub fn set_mode(&mut self, mode: OpMode) -> Result<(), SPI::Error> {
-        let status: CanStat = self.read_register()?;
+    pub async fn set_mode(&mut self, mode: OpMode) -> Result<(), SPI::Error> {
+        let status: CanStat = self.read_register().await?;
 
         // If the device is currently in sleep mode, we need to wake it
         if status.opmod() == OpMode::Sleep && mode != OpMode::Sleep {
             // Ensure wake interrupt is enabled
-            let caninte: CanInte = self.read_register()?;
+            let caninte: CanInte = self.read_register().await?;
             let int_enabled = caninte.wakie();
             if !int_enabled {
                 let data = CanInte::new().with_wakie(true);
-                self.modify_register(data, data)?;
+                self.modify_register(data, data).await?;
             }
 
             // Actually wake the device
             let data = CanIntf::new().with_wakif(true);
-            self.modify_register(data, CanIntf::MASK_WAKIF)?;
+            self.modify_register(data, CanIntf::MASK_WAKIF).await?;
 
             // Change the device into listen only mode.
-            self.set_mode_no_wake(OpMode::ListenOnly)?;
+            self.set_mode_no_wake(OpMode::ListenOnly).await?;
 
             // Disable the interrupt if it was originally disabled
             if !int_enabled {
-                self.modify_register(CanInte::new().with_wakie(false), CanInte::MASK_WAKIE)?;
+                self.modify_register(CanInte::new().with_wakie(false), CanInte::MASK_WAKIE)
+                    .await?;
             }
         }
 
         // Clear wake flag and actually set the new mode
-        self.modify_register(CanIntf::new().with_wakif(false), CanIntf::MASK_WAKIF)?;
-        self.set_mode_no_wake(mode)
+        self.modify_register(CanIntf::new().with_wakif(false), CanIntf::MASK_WAKIF)
+            .await?;
+        self.set_mode_no_wake(mode).await
     }
 
     /// Attempts to set the operation mode without waking the device.
@@ -357,13 +374,14 @@ where
     ///
     /// Nothing on success, an error if the device did not respond to changing
     /// mode.
-    fn set_mode_no_wake(&mut self, mode: OpMode) -> Result<(), SPI::Error> {
-        self.modify_register(CanCtrl::new().with_reqop(mode), CanCtrl::MASK_REQOP)?;
+    async fn set_mode_no_wake(&mut self, mode: OpMode) -> Result<(), SPI::Error> {
+        self.modify_register(CanCtrl::new().with_reqop(mode), CanCtrl::MASK_REQOP)
+            .await?;
 
         // Wait until status register updates with new mode. We retry 20 times, if it
         // hasn't updated by then fail.
         for _ in 0..20 {
-            let canstat: CanStat = self.read_register()?;
+            let canstat: CanStat = self.read_register().await?;
             if canstat.opmod_or_err() == Ok(mode) {
                 return Ok(());
             }
@@ -377,8 +395,9 @@ where
     /// # Parameters
     ///
     /// * `clken` - Whether the `CLKOUT` pin should be enabled or disabled.
-    fn set_clken(&mut self, clken: bool) -> Result<(), SPI::Error> {
+    async fn set_clken(&mut self, clken: bool) -> Result<(), SPI::Error> {
         self.modify_register(CanCtrl::new().with_clken(clken), CanCtrl::MASK_CLKEN)
+            .await
     }
 
     /// Sends a CAN frame over the CAN bus via any available Tx buffer.
@@ -386,9 +405,9 @@ where
     /// # Parameters
     ///
     /// * `frame` - Frame to send.
-    pub fn send_message(&mut self, frame: CanFrame) -> Result<(), SPI::Error> {
-        let buf = self.find_free_tx_buf()?;
-        self.send_message_via_buffer(buf, frame)
+    pub async fn send_message(&mut self, frame: CanFrame) -> Result<(), SPI::Error> {
+        let buf = self.find_free_tx_buf().await?;
+        self.send_message_via_buffer(buf, frame).await
     }
 
     /// Sends a CAN frame over the CAN bus via a specific Tx buffer.
@@ -397,27 +416,29 @@ where
     ///
     /// * `buf` - Tx buffer to use for transmission.
     /// * `frame` - Frame to send.
-    pub fn send_message_via_buffer(
+    pub async fn send_message_via_buffer(
         &mut self,
         buf: TxBuf,
         frame: CanFrame,
     ) -> Result<(), SPI::Error> {
         // Write control registers.
         let txbuf = TxBufIdent::from_frame(&frame);
-        self.write_register_addr(&buf.registers(), &txbuf.into_bytes())?;
+        self.write_register_addr(&buf.registers(), &txbuf.into_bytes())
+            .await?;
 
         // Write data registers.
-        self.write_registers(buf.data(), frame.data())?;
+        self.write_registers(buf.data(), frame.data()).await?;
 
         // Set `txreq` bit in ctrl register.
         self.modify_register_addr(
             &[buf.ctrl()],
             &TxbCtrl::MASK_TXREQ.into_bytes(),
             &TxbCtrl::new().with_txreq(true).into_bytes(),
-        )?;
+        )
+        .await?;
 
         // Check for any errors.
-        let ctrl = self.read_txb_ctrl(&buf)?;
+        let ctrl = self.read_txb_ctrl(&buf).await?;
         if ctrl.abtf() || ctrl.mloa() || ctrl.txerr() {
             Err(Error::TxFailed)
         } else {
@@ -426,12 +447,12 @@ where
     }
 
     /// Reads a message from the MCP2515 Rx buffers.
-    pub fn read_message(&mut self) -> Result<CanFrame, SPI::Error> {
-        let status = self.read_status()?;
+    pub async fn read_message(&mut self) -> Result<CanFrame, SPI::Error> {
+        let status = self.read_status().await?;
         if status.rx0if() {
-            self.read_message_from_buf(RxBuf::B0)
+            self.read_message_from_buf(RxBuf::B0).await
         } else if status.rx1if() {
-            self.read_message_from_buf(RxBuf::B1)
+            self.read_message_from_buf(RxBuf::B1).await
         } else {
             Err(Error::NoMessage)
         }
@@ -442,23 +463,47 @@ where
     /// # Parameters
     ///
     /// * `buf` - Rx buffer to read from.
-    pub fn read_message_from_buf(&mut self, buf: RxBuf) -> Result<CanFrame, SPI::Error> {
+    pub async fn read_message_from_buf(&mut self, buf: RxBuf) -> Result<CanFrame, SPI::Error> {
         let regs = buf.registers();
         let mut ret = [0u8; 5];
         debug_assert!(regs.len() == ret.len());
 
-        self.read_register_addr(&regs, &mut ret)?;
+        self.read_register_addr(&regs, &mut ret).await?;
         let rxbuf = RxBufIdent::from_bytes(ret);
 
-        // Read data and claer Rx interrupt flag
-        let frame = rxbuf.into_frame(|ret| self.read_register_seq(buf.data(), ret))?;
+        let frame = {
+            let id = if rxbuf.ide() {
+                let id = rxbuf.eid() | ((rxbuf.sid() as u32) << 18);
+                Id::Extended(ExtendedId::new(id).ok_or(Error::InvalidFrameId)?)
+            } else {
+                Id::Standard(StandardId::new(rxbuf.sid()).ok_or(Error::InvalidFrameId)?)
+            };
+            let dlc = rxbuf.dlc();
+            if dlc > 8 {
+                return Err(Error::InvalidDlc);
+            }
+            let mut frame = CanFrame {
+                id,
+                rtr: rxbuf.srr() && !rxbuf.ide(),
+                dlc,
+                data: [0; 8],
+            };
+            self.read_register_seq(buf.data(), &mut frame.data[..(dlc as usize)])
+                .await?;
+            Ok(frame)
+        }?;
+        // Read data and clear Rx interrupt flag
+        // let frame = rxbuf
+        //     .into_frame(|ret| ).await
+        //     .await?;
         self.modify_register(
             CanIntf::new(),
             match buf {
                 RxBuf::B0 => CanIntf::MASK_RX0IF,
                 RxBuf::B1 => CanIntf::MASK_RX1IF,
             },
-        )?;
+        )
+        .await?;
         Ok(frame)
     }
 
@@ -467,9 +512,9 @@ where
     /// # Returns
     ///
     /// An available Tx buffer on success, error if all Tx buffers were busy.
-    pub fn find_free_tx_buf(&mut self) -> Result<TxBuf, SPI::Error> {
+    pub async fn find_free_tx_buf(&mut self) -> Result<TxBuf, SPI::Error> {
         for buffer in TxBuf::ALL {
-            let ctrl = self.read_txb_ctrl(&buffer)?;
+            let ctrl = self.read_txb_ctrl(&buffer).await?;
             if !ctrl.txreq() {
                 return Ok(buffer);
             }
@@ -478,15 +523,15 @@ where
     }
 
     /// Read the `CTRL` register of a Tx buffer.
-    fn read_txb_ctrl(&mut self, buffer: &TxBuf) -> Result<TxbCtrl, SPI::Error> {
+    async fn read_txb_ctrl(&mut self, buffer: &TxBuf) -> Result<TxbCtrl, SPI::Error> {
         let mut buf = [0u8; 1];
-        self.read_register_addr(&[buffer.ctrl()], &mut buf)?;
+        self.read_register_addr(&[buffer.ctrl()], &mut buf).await?;
         Ok(TxbCtrl::from_bytes(buf))
     }
 
     /// Resets the MCP2515.
-    pub fn reset(&mut self, delay: &mut impl DelayNs) -> Result<(), SPI::Error> {
-        self.transfer(&mut [Instruction::Reset as u8])?;
+    pub async fn reset(&mut self, delay: &mut impl DelayNs) -> Result<(), SPI::Error> {
+        self.transfer(&mut [Instruction::Reset as u8]).await?;
         // Sleep for 5ms after reset - if the device is in sleep mode it won't respond
         // immediately
         delay.delay_ms(5);
@@ -495,18 +540,21 @@ where
     }
 
     /// Reads the status register.
-    pub fn read_status(&mut self) -> Result<Status, SPI::Error> {
+    pub async fn read_status(&mut self) -> Result<Status, SPI::Error> {
         let mut data = [Instruction::ReadStatus as u8, 0];
         self.transfer(&mut data)
+            .await
             .map(|b| [b])
             .map(Status::from_bytes)
     }
 
     /// Read a register via a register object.
     #[inline]
-    pub fn read_register<const N: usize, R: regs::Reg<N>>(&mut self) -> Result<R, SPI::Error> {
+    pub async fn read_register<const N: usize, R: regs::Reg<N>>(
+        &mut self,
+    ) -> Result<R, SPI::Error> {
         let mut ret = [0u8; N];
-        self.read_register_addr(&R::ADDRESSES, &mut ret)?;
+        self.read_register_addr(&R::ADDRESSES, &mut ret).await?;
         Ok(R::read(ret))
     }
 
@@ -524,7 +572,7 @@ where
     /// # Returns
     ///
     /// The number of registers read on success.
-    fn read_register_addr(
+    async fn read_register_addr(
         &mut self,
         regs: &[Register],
         ret: &mut [u8],
@@ -532,7 +580,7 @@ where
         let n = regs.len().min(ret.len());
         for i in 0..n {
             let mut data = [Instruction::Read as u8, regs[i] as u8, 0];
-            ret[i] = self.transfer(&mut data)?;
+            ret[i] = self.transfer(&mut data).await?;
         }
         Ok(n)
     }
@@ -544,21 +592,23 @@ where
     ///
     /// * `reg` - Register to start reading from.
     /// * `ret` - Return slice to write into.
-    fn read_register_seq(&mut self, reg: Register, ret: &mut [u8]) -> Result<(), SPI::Error> {
+    async fn read_register_seq(&mut self, reg: Register, ret: &mut [u8]) -> Result<(), SPI::Error> {
         let hdr = [Instruction::Read as u8, reg as u8];
         self.spi
             .transaction(&mut [Operation::Write(&hdr), Operation::TransferInPlace(ret)])
+            .await
             .map_err(Error::Spi)?;
         Ok(())
     }
 
     /// Write to a register using a register object.
     #[inline]
-    pub fn write_register<const N: usize, R: regs::Reg<N>>(
+    pub async fn write_register<const N: usize, R: regs::Reg<N>>(
         &mut self,
         reg: R,
     ) -> Result<(), SPI::Error> {
-        self.write_register_addr(&R::ADDRESSES, &reg.write())?;
+        self.write_register_addr(&R::ADDRESSES, &reg.write())
+            .await?;
         Ok(())
     }
 
@@ -567,7 +617,7 @@ where
     /// This function writes to `n` registers, where `n` is the minimum of the
     /// length of `regs` and the length of `data`. The number of registers
     /// written is returned in a result.
-    pub fn write_register_addr(
+    pub async fn write_register_addr(
         &mut self,
         regs: &[Register],
         data: &[u8],
@@ -575,17 +625,18 @@ where
         let n = regs.len().min(data.len());
         for i in 0..n {
             let mut data = [Instruction::Write as u8, regs[i] as u8, data[i]];
-            self.transfer(&mut data)?;
+            self.transfer(&mut data).await?;
         }
         Ok(n)
     }
 
     /// Writes to sequential registers. Writing will start at `reg` and continue
     /// sequentially until `data` is empty.
-    fn write_registers(&mut self, reg: Register, data: &[u8]) -> Result<(), SPI::Error> {
+    async fn write_registers(&mut self, reg: Register, data: &[u8]) -> Result<(), SPI::Error> {
         let hdr = [Instruction::Write as u8, reg as u8];
         self.spi
             .transaction(&mut [Operation::Write(&hdr), Operation::Write(data)])
+            .await
             .map_err(Error::Spi)?;
         Ok(())
     }
@@ -598,14 +649,15 @@ where
     /// * `mask` - Mask register. The bits must be 1 in the positions you want
     ///   to modify.
     #[inline]
-    pub fn modify_register<const N: usize, R: regs::BitModifiable<N>>(
+    pub async fn modify_register<const N: usize, R: regs::BitModifiable<N>>(
         &mut self,
         reg: R,
         mask: R,
     ) -> Result<(), SPI::Error> {
         let mask = mask.write();
         let reg = reg.write();
-        self.modify_register_addr(&R::ADDRESSES, &reg, &mask)?;
+        self.modify_register_addr(&R::ADDRESSES, &reg, &mask)
+            .await?;
         Ok(())
     }
 
@@ -621,7 +673,7 @@ where
     /// # Returns
     ///
     /// Returns the number of registers modified (n), or error on failure.
-    pub fn modify_register_addr(
+    pub async fn modify_register_addr(
         &mut self,
         regs: &[Register],
         data: &[u8],
@@ -636,7 +688,7 @@ where
                 data[i],                   // Data byte
                 0,                         // Recv
             ];
-            self.transfer(&mut data)?;
+            self.transfer(&mut data).await?;
         }
         Ok(n)
     }
@@ -653,8 +705,11 @@ where
     ///
     /// Returns the last element received from the slave. If no bytes were sent,
     /// 0 is returned.
-    fn transfer(&mut self, bytes: &mut [u8]) -> Result<u8, SPI::Error> {
-        self.spi.transfer_in_place(bytes).map_err(Error::Spi)?;
+    async fn transfer(&mut self, bytes: &mut [u8]) -> Result<u8, SPI::Error> {
+        self.spi
+            .transfer_in_place(bytes)
+            .await
+            .map_err(Error::Spi)?;
         if let [.., data] = bytes {
             Ok(*data)
         } else {
@@ -662,6 +717,9 @@ where
         }
     }
 }
+
+// #[maybe_async::sync_impl]
+#[cfg(not(feature = "async"))]
 
 impl<SPI> Can for MCP2515<SPI>
 where
@@ -679,4 +737,20 @@ where
     fn receive(&mut self) -> Result<Self::Frame, SPI::Error> {
         self.read_message()
     }
+}
+
+#[cfg(feature = "async")]
+pub trait Can {
+    /// Associated frame type.
+    type Frame: embedded_can::Frame;
+
+    /// Associated error type.
+    type Error: embedded_can::Error;
+
+    /// Puts a frame in the transmit buffer. Waits until space is available in
+    /// the transmit buffer.
+    async fn transmit(&mut self, frame: &Self::Frame) -> Result<(), Self::Error>;
+
+    /// Waits until a frame was received or an error occured.
+    async fn receive(&mut self) -> Result<Self::Frame, Self::Error>;
 }

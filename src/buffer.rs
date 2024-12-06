@@ -118,6 +118,7 @@ pub struct RxBufIdent {
     pub sid: B11,
 }
 
+#[maybe_async::sync_impl]
 impl RxBufIdent {
     /// Attempt to convert a Rx buffer + data into a CAN frame.
     ///
@@ -150,6 +151,40 @@ impl RxBufIdent {
         Ok(frame)
     }
 }
+
+// #[maybe_async::async_impl]
+// impl RxBufIdent {
+//     /// Attempt to convert a Rx buffer + data into a CAN frame.
+//     ///
+//     /// # Parameters
+//     ///
+//     /// * `read_data` - Function which reads from the corresponding `DATA`
+//     ///   register. The function should fill the mutable slice with bytes
+//     ///   received from the CAN bus.
+//     pub async fn into_frame<SPIE: Debug>(
+//         self,
+//         read_data: impl Future<Output = Result<(), SPIE>>,
+//     ) -> Result<CanFrame, SPIE> {
+//         let id = if self.ide() {
+//             let id = self.eid() | ((self.sid() as u32) << 18);
+//             Id::Extended(ExtendedId::new(id).ok_or(Error::InvalidFrameId)?)
+//         } else {
+//             Id::Standard(StandardId::new(self.sid()).ok_or(Error::InvalidFrameId)?)
+//         };
+//         let dlc = self.dlc();
+//         if dlc > 8 {
+//             return Err(Error::InvalidDlc);
+//         }
+//         let mut frame = CanFrame {
+//             id,
+//             rtr: self.srr() && !self.ide(),
+//             dlc,
+//             data: [0; 8],
+//         };
+//         read_data(&mut frame.data[..(dlc as usize)]).await?;
+//         Ok(frame)
+//     }
+// }
 
 crate::filter_def! {
     /// Receive buffer.
