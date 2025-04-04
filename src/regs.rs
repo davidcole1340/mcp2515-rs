@@ -123,6 +123,8 @@ pub struct CanCtrl {
 impl CanCtrl {
     /// Mask to modify the `reqop` bits.
     pub const MASK_REQOP: Self = Self::from_bytes([0b1110_0000]);
+    /// Mask to modify the `osm` (One-shot Mode) bit.
+    pub const MASK_OSM: Self = Self::from_bytes([0b0000_1000]);
     /// Mask to modify the `clken` bit.
     pub const MASK_CLKEN: Self = Self::from_bytes([0b0000_0100]);
 }

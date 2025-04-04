@@ -22,6 +22,8 @@ pub enum Error<SPI: Debug> {
     InvalidFrameId,
     /// Received an invalid DLC (CAN frame data length).
     InvalidDlc,
+    /// A value for a bitfield was wrongly set
+    InvalidRegisterValue,
     /// Invalid configuration options.
     InvalidConfiguration(CanSpeed, McpSpeed),
     /// SPI error.

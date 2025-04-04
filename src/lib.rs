@@ -39,10 +39,10 @@ enum Instruction {
     // LoadTX0 = 0x40,
     // LoadTX1 = 0x42,
     // LoadTX2 = 0x44,
-    // RTSTX0 = 0x81,
-    // RTSTX1 = 0x82,
-    // RTSTX2 = 0x84,
-    // RTSAll = 0x87,
+    RTSTX0 = 0x81,
+    RTSTX1 = 0x82,
+    RTSTX2 = 0x84,
+    RTSAll = 0x87,
     // ReadRX0 = 0x90,
     // ReadRX1 = 0x94,
     ReadStatus = 0xA0,
@@ -317,7 +317,12 @@ where
         let status: CanStat = self.read_register()?;
 
         // If the device is currently in sleep mode, we need to wake it
-        if status.opmod() == OpMode::Sleep && mode != OpMode::Sleep {
+        if status
+            .opmod_or_err()
+            .map_err(|_invalid| Error::InvalidRegisterValue)?
+            == OpMode::Sleep
+            && mode != OpMode::Sleep
+        {
             // Ensure wake interrupt is enabled
             let caninte: CanInte = self.read_register()?;
             let int_enabled = caninte.wakie();
@@ -381,6 +386,15 @@ where
         self.modify_register(CanCtrl::new().with_clken(clken), CanCtrl::MASK_CLKEN)
     }
 
+    /// Enables/disables One Shot mode of the MCP2515.
+    ///
+    /// # Parameters
+    ///
+    /// * `osm` - Whether the One-shot Mode should be enabled
+    pub fn set_one_shot_mode(&mut self, osm: bool) -> Result<(), SPI::Error> {
+        self.modify_register(CanCtrl::new().with_osm(osm), CanCtrl::MASK_OSM)
+    }
+
     /// Sends a CAN frame over the CAN bus via any available Tx buffer.
     ///
     /// # Parameters
@@ -415,6 +429,9 @@ where
             &TxbCtrl::MASK_TXREQ.into_bytes(),
             &TxbCtrl::new().with_txreq(true).into_bytes(),
         )?;
+
+        // Sending the SPI RTS command
+        self.request_to_send(Some(buf))?;
 
         // Check for any errors.
         let ctrl = self.read_txb_ctrl(&buf)?;
@@ -490,6 +507,22 @@ where
         // Sleep for 5ms after reset - if the device is in sleep mode it won't respond
         // immediately
         delay.delay_ms(5);
+
+        Ok(())
+    }
+
+    /// Request-to-send of a specific tx buffer or all if no tx buffer is provided
+    fn request_to_send(&mut self, tx_buf: Option<TxBuf>) -> Result<(), SPI::Error> {
+        let rts_buf = tx_buf
+            .map(|x| match x {
+                TxBuf::B0 => Instruction::RTSTX0,
+                TxBuf::B1 => Instruction::RTSTX1,
+                TxBuf::B2 => Instruction::RTSTX2,
+            })
+            .unwrap_or(Instruction::RTSAll);
+
+        let mut data = [rts_buf as u8, 0];
+        self.transfer(&mut data)?;
 
         Ok(())
     }
